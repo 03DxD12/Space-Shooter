@@ -15,7 +15,11 @@
     <div class="stars stars-b" aria-hidden="true"></div>
 
     <header class="topbar">
-      <div class="brand"><span class="brand-mark">A</span><span>ASTROTYPE</span></div>
+      <button class="brand brand-button" id="navHome" type="button" aria-label="Return to main menu"><span class="brand-mark">A</span><span>ASTROTYPE</span></button>
+      <nav class="top-nav" aria-label="Primary navigation">
+        <button id="navGuide" type="button"><span aria-hidden="true">?</span><b>Guide</b></button>
+        <button id="navScores" type="button"><span aria-hidden="true">▤</span><b>Records</b></button>
+      </nav>
       <button class="icon-button" id="soundButton" type="button" aria-label="Turn sound off" aria-pressed="true">
         <span id="soundIcon">♪</span><span id="soundLabel">Sound on</span>
       </button>
@@ -28,7 +32,14 @@
       <div class="hud-block"><span>Accuracy</span><strong id="accuracyValue">100%</strong></div>
       <div class="hud-block"><span>WPM</span><strong id="wpmValue">0</strong></div>
       <div class="hud-block combo"><span>Combo</span><strong id="comboValue">×0</strong></div>
-      <div class="hud-mode" id="difficultyBadge">NORMAL</div>
+      <div class="hud-side">
+        <div class="hud-mode" id="difficultyBadge">NORMAL</div>
+        <div class="world-status">
+          <div><span id="worldKicker">WORLD 01</span><strong id="worldName">Orbital Frontier</strong></div>
+          <div class="world-progress" role="progressbar" aria-label="Progress to the next world" aria-valuemin="0" aria-valuemax="500" aria-valuenow="0"><i id="worldProgressBar"></i></div>
+          <small id="worldNextLabel">500 TO NEXT WORLD</small>
+        </div>
+      </div>
     </section>
 
     <section class="power-strip" id="powerStrip" aria-live="polite" hidden></section>
@@ -37,6 +48,14 @@
       <span class="console-label">TARGET INPUT</span>
       <strong id="typedValue">Start typing…</strong>
       <span class="cursor" aria-hidden="true"></span>
+      <span class="mobile-type-hint">Tap to type</span>
+      <input id="mobileInput" class="mobile-input" type="text" inputmode="text" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Type asteroid words">
+    </section>
+
+    <section class="world-banner" id="worldBanner" aria-live="polite" aria-atomic="true">
+      <span id="worldBannerKicker">WORLD 02 UNLOCKED</span>
+      <strong id="worldBannerName">Crimson Nebula</strong>
+      <small id="worldBannerDescription">Hostile dust clouds detected</small>
     </section>
 
     <div class="defense-line" id="defenseLine" hidden><span>DEFENSE PERIMETER</span></div>
@@ -85,7 +104,7 @@
           <article><span>02</span><h3>Destroy</h3><p>Finish the word correctly. Your ship automatically fires on the target.</p></article>
           <article><span>03</span><h3>Survive</h3><p>Stop threats before they cross the defense line. Three impacts end the mission.</p></article>
         </div>
-        <p class="tip"><kbd>ESC</kbd> pauses the mission. Mistakes reduce accuracy and reset your combo. Special asteroids grant tactical bonuses.</p>
+        <p class="tip"><kbd>ESC</kbd> pauses the mission. Mistakes reduce accuracy and reset your combo. Reach each 500-point threshold to enter a new world. Rare Nova, Dual Blaster, Shield, Health, Freeze, and Golden asteroids grant tactical bonuses.</p>
         <button class="button primary back-menu" type="button">Return to command</button>
       </div>
     </section>
@@ -110,7 +129,7 @@
       <div class="dialog game-over">
         <p class="eyebrow danger">DEFENSE LINE BREACHED</p><h2 id="gameOverTitle">Game over</h2>
         <div class="final-score"><span>Final score</span><strong id="finalScore">0</strong></div>
-        <div class="results-grid"><div><span>Difficulty</span><b id="finalDifficulty">Normal</b></div><div><span>Words destroyed</span><b id="finalWords">0</b></div><div><span>Accuracy</span><b id="finalAccuracy">100%</b></div><div><span>Average WPM</span><b id="finalWpm">0</b></div><div><span>Highest combo</span><b id="finalCombo">0</b></div><div><span>Level reached</span><b id="finalLevel">1</b></div></div>
+        <div class="results-grid"><div><span>Difficulty</span><b id="finalDifficulty">Normal</b></div><div><span>Words destroyed</span><b id="finalWords">0</b></div><div><span>Accuracy</span><b id="finalAccuracy">100%</b></div><div><span>Average WPM</span><b id="finalWpm">0</b></div><div><span>Highest combo</span><b id="finalCombo">0</b></div><div><span>Level reached</span><b id="finalLevel">1</b></div><div><span>World reached</span><b id="finalWorld">Orbital Frontier</b></div></div>
         <label class="pilot-name">Pilot name <input id="pilotName" maxlength="12" autocomplete="nickname" placeholder="ACE" value="ACE"></label>
         <div class="dialog-actions"><button class="button primary" id="playAgainButton" type="button">Play again</button><button class="button" id="changeDifficultyButton" type="button">Change difficulty</button><button class="text-button main-menu-button" type="button">Main menu</button></div>
       </div>

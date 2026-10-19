@@ -1,6 +1,6 @@
 # AstroType: Typing Defender
 
-AstroType is a browser-based typing defense game. Type the words on incoming asteroids to lock on, fire, and protect your ship. It includes Easy, Normal, and Hard modes, progressive difficulty, power-ups, local high scores, sound effects, responsive layouts, and pause/game-over flows.
+AstroType is a browser-based typing defense game. Type the words on incoming asteroids to lock on, fire, and protect your ship. It includes Easy, Normal, and Hard modes, progressive difficulty, collectible combat power-ups, local high scores, sound effects, responsive layouts, and pause/game-over flows.
 
 The game is entirely static: HTML, CSS, and vanilla JavaScript only. It requires no backend, database, package installation, or build step.
 
@@ -14,6 +14,10 @@ Open `index.html` in a modern desktop browser. No local server is required. A ph
 - Press `Backspace` to clear the current target.
 - Press `Escape` to pause or resume.
 - Use the Sound control in the top-right corner to enable or disable audio.
+
+Rare special asteroids can clear the whole field with a Nova blast, activate a timed Dual Blaster, absorb one impact with a Shield, restore health, freeze enemies, or double score.
+
+Every 500 points unlocks a new themed world: Orbital Frontier, Crimson Nebula, Frozen Expanse, Void Rift, and Solar Crown. Each world has its own atmosphere, transition effects, progress display, and visual palette. On smaller screens, tap the target-input console to open the mobile keyboard.
 
 High scores are stored in the current browser with `localStorage`. They are local records, not a shared online leaderboard.
 

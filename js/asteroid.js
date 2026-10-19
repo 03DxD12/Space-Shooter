@@ -6,6 +6,8 @@
     shield: "#7a8cff",
     health: "#ff668c",
     freeze: "#65f5ff",
+    nova: "#ff8bf3",
+    dual: "#82ff9d",
     normal: "#a9bad0"
   };
 

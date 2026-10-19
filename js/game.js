@@ -17,6 +17,14 @@
     hard: { speed: 55, spawnDelay: 1.15, maxAsteroids: 8, baseScore: 30, label: "Hard" }
   });
 
+  const WORLDS = Object.freeze([
+    { id: "frontier", name: "Orbital Frontier", description: "Training orbit secured", threshold: 0, glow: "rgba(31, 106, 190, .28)", dust: "#9db5cf", accent: "#65f5ff" },
+    { id: "nebula", name: "Crimson Nebula", description: "Hostile dust clouds detected", threshold: 500, glow: "rgba(191, 42, 96, .3)", dust: "#ff8a9f", accent: "#ff668c" },
+    { id: "frost", name: "Frozen Expanse", description: "Cryonic storm front entered", threshold: 1000, glow: "rgba(63, 176, 224, .3)", dust: "#d7fbff", accent: "#9cecff" },
+    { id: "rift", name: "Void Rift", description: "Gravity readings unstable", threshold: 1500, glow: "rgba(112, 59, 208, .32)", dust: "#bd91ff", accent: "#ad77ff" },
+    { id: "solar", name: "Solar Crown", description: "Stellar core defense engaged", threshold: 2000, glow: "rgba(235, 125, 28, .32)", dust: "#ffd481", accent: "#ffb84d" }
+  ]);
+
   class SoundSystem {
     constructor() {
       this.enabled = localStorage.getItem("astrotype-sound") !== "off";
@@ -85,7 +93,9 @@
       this.flashTimer = 0;
       this.shake = 0;
       this.currentScoreId = null;
-      this.powerUps = { freeze: 0, double: 0, shield: 0, mega: 0 };
+      this.worldIndex = 0;
+      this.worldBannerTimer = 0;
+      this.powerUps = { freeze: 0, double: 0, dual: 0, shield: 0, mega: 0 };
       this.cacheDom();
       this.bindEvents();
       this.resize();
@@ -97,7 +107,7 @@
 
     cacheDom() {
       this.dom = {};
-      ["hud", "powerStrip", "typingConsole", "defenseLine", "menuScreen", "difficultyScreen", "howScreen", "scoresScreen", "pauseScreen", "gameOverScreen", "scoreValue", "levelValue", "livesValue", "accuracyValue", "wpmValue", "comboValue", "difficultyBadge", "typedValue", "menuDifficulty", "scoreRows", "soundButton", "soundIcon", "soundLabel", "pilotName"].forEach((id) => {
+      ["app", "hud", "powerStrip", "typingConsole", "defenseLine", "menuScreen", "difficultyScreen", "howScreen", "scoresScreen", "pauseScreen", "gameOverScreen", "scoreValue", "levelValue", "livesValue", "accuracyValue", "wpmValue", "comboValue", "difficultyBadge", "typedValue", "menuDifficulty", "scoreRows", "soundButton", "soundIcon", "soundLabel", "pilotName", "mobileInput", "worldKicker", "worldName", "worldProgressBar", "worldNextLabel", "worldBanner", "worldBannerKicker", "worldBannerName", "worldBannerDescription"].forEach((id) => {
         this.dom[id] = document.getElementById(id);
       });
       this.screens = [this.dom.menuScreen, this.dom.difficultyScreen, this.dom.howScreen, this.dom.scoresScreen, this.dom.pauseScreen, this.dom.gameOverScreen];
@@ -110,6 +120,9 @@
       document.getElementById("difficultyButton").addEventListener("click", () => this.showScreen(STATES.DIFFICULTY_SELECTION));
       document.getElementById("howButton").addEventListener("click", () => this.showScreen(STATES.HOW_TO_PLAY));
       document.getElementById("scoresButton").addEventListener("click", () => this.showScores(this.difficulty));
+      document.getElementById("navHome").addEventListener("click", () => this.showScreen(STATES.MENU));
+      document.getElementById("navGuide").addEventListener("click", () => this.showScreen(STATES.HOW_TO_PLAY));
+      document.getElementById("navScores").addEventListener("click", () => this.showScores(this.difficulty));
       document.getElementById("difficultyConfirm").addEventListener("click", () => this.startGame());
       document.getElementById("resumeButton").addEventListener("click", () => this.resume());
       document.getElementById("restartButton").addEventListener("click", () => this.startGame());
@@ -121,6 +134,18 @@
       document.querySelectorAll("[data-score-tab]").forEach((button) => button.addEventListener("click", () => this.showScores(button.dataset.scoreTab)));
       document.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => this.sound.play("click")));
       this.dom.pilotName.addEventListener("input", () => this.updateCurrentScoreName());
+      this.dom.mobileInput.addEventListener("input", (event) => {
+        if (this.state === STATES.PLAYING) {
+          event.target.value.toLowerCase().split("").filter((character) => /^[a-z]$/.test(character)).forEach((character) => this.typeCharacter(character));
+        }
+        event.target.value = "";
+      });
+      this.dom.mobileInput.addEventListener("keydown", (event) => {
+        if (event.key === "Backspace" && this.state === STATES.PLAYING) {
+          event.preventDefault();
+          this.clearTarget();
+        }
+      });
       document.addEventListener("visibilitychange", () => {
         if (document.hidden && this.state === STATES.PLAYING) this.pause();
       });
@@ -136,6 +161,7 @@
       this.canvas.style.height = `${this.height}px`;
       this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       this.player.resize(this.width, this.height);
+      this.isMobileLayout = this.width <= 700;
     }
 
     selectDifficulty(value) {
@@ -160,10 +186,16 @@
       const screen = map[state];
       if (screen) { screen.hidden = false; requestAnimationFrame(() => screen.classList.add("active")); }
       const playingUi = state === STATES.PLAYING || state === STATES.PAUSED;
+      this.dom.app.classList.toggle("game-active", playingUi);
       this.dom.hud.hidden = !playingUi;
       this.dom.typingConsole.hidden = !playingUi;
       this.dom.defenseLine.hidden = !playingUi;
       if (state !== STATES.PLAYING && state !== STATES.PAUSED) this.dom.powerStrip.hidden = true;
+      if (!playingUi) {
+        this.dom.mobileInput.blur();
+        this.dom.worldBanner.classList.remove("active");
+        this.worldBannerTimer = 0;
+      }
     }
 
     startGame() {
@@ -171,6 +203,8 @@
       this.score = 0;
       this.lives = 3;
       this.level = 1;
+      this.worldIndex = 0;
+      this.worldBannerTimer = 0;
       this.correctKeys = 0;
       this.incorrectKeys = 0;
       this.wordsDestroyed = 0;
@@ -183,7 +217,7 @@
       this.particles = [];
       this.floatingTexts = [];
       this.activeTarget = null;
-      this.powerUps = { freeze: 0, double: 0, shield: 0, mega: 0 };
+      this.powerUps = { freeze: 0, double: 0, dual: 0, shield: 0, mega: 0 };
       this.lastTime = now;
       this.state = STATES.PLAYING;
       this.screens.forEach((screen) => { screen.hidden = true; screen.classList.remove("active"); });
@@ -191,6 +225,8 @@
       this.dom.typingConsole.hidden = false;
       this.dom.defenseLine.hidden = false;
       this.dom.difficultyBadge.textContent = this.difficulty.toUpperCase();
+      this.dom.app.classList.add("game-active");
+      this.setWorld(0, false);
       this.updateHud();
     }
 
@@ -212,6 +248,7 @@
         if (this.state === STATES.PLAYING) this.pause(); else if (this.state === STATES.PAUSED) this.resume();
         return;
       }
+      if (event.target === this.dom.mobileInput) return;
       if (this.state !== STATES.PLAYING || event.ctrlKey || event.metaKey || event.altKey || event.repeat) return;
       if (event.key === "Backspace") {
         event.preventDefault();
@@ -265,7 +302,20 @@
     }
 
     fireCharacterBlast(target, lethal) {
-      this.projectiles.push(new Projectile(this.player.x, this.player.y - 30, target, this.powerUps.mega > 0, lethal));
+      const dualBlaster = this.powerUps.dual > 0;
+      const muzzleOffsets = dualBlaster ? [-16, 16] : [0];
+      muzzleOffsets.forEach((offset, index) => {
+        this.projectiles.push(new Projectile(
+          this.player.x + offset,
+          this.player.y - 25,
+          target,
+          this.powerUps.mega > 0,
+          lethal && index === 0
+        ));
+        for (let spark = 0; spark < 3; spark += 1) {
+          this.particles.push(new Particle(this.player.x + offset, this.player.y - 28, dualBlaster ? "#82ff9d" : "#65f5ff", { speed: 30, life: 0.18, size: 1.5 }));
+        }
+      });
       this.sound.play("laser");
     }
 
@@ -291,10 +341,12 @@
       }
       const roll = Math.random();
       let type = "normal";
-      if (roll < 0.025) type = "golden";
-      else if (roll < 0.045) type = "shield";
-      else if (roll < 0.062) type = "health";
-      else if (roll < 0.085) type = "freeze";
+      if (roll < 0.012) type = "nova";
+      else if (roll < 0.03) type = "dual";
+      else if (roll < 0.055) type = "golden";
+      else if (roll < 0.077) type = "shield";
+      else if (roll < 0.094) type = "health";
+      else if (roll < 0.117) type = "freeze";
       const speedVariance = 0.84 + Math.random() * 0.3;
       const speed = (setting.speed + (this.level - 1) * (this.difficulty === "hard" ? 5 : 3.5)) * speedVariance;
       this.asteroids.push(new Asteroid(word, x, -55, speed, type));
@@ -310,6 +362,7 @@
       this.score += points;
       this.wordsDestroyed += 1;
       this.level = Math.floor(this.score / 500) + 1;
+      this.updateWorld();
       this.applySpecial(asteroid.type);
       const color = asteroid.type === "golden" ? "#ffd15c" : "#65f5ff";
       for (let index = 0; index < 25; index += 1) this.particles.push(new Particle(asteroid.x, asteroid.y, index % 3 ? color : "#ff805e", { speed: 60 + Math.random() * 200 }));
@@ -323,7 +376,37 @@
       if (type === "shield") this.powerUps.shield = 1;
       if (type === "health") this.lives = Math.min(3, this.lives + 1);
       if (type === "freeze") this.powerUps.freeze = 6;
+      if (type === "dual") this.powerUps.dual = 10;
+      if (type === "nova") this.clearField();
       if (type !== "normal") this.sound.play("power");
+    }
+
+    clearField() {
+      const setting = SETTINGS[this.difficulty];
+      const targets = this.asteroids.filter((asteroid) => !asteroid.removed);
+      if (!targets.length) {
+        this.floatingTexts.push(new FloatingText(this.width / 2, this.height * 0.46, "NOVA BLAST", "#ff8bf3"));
+        return;
+      }
+
+      targets.forEach((asteroid) => {
+        asteroid.removed = true;
+        let points = setting.baseScore + asteroid.word.length;
+        if (this.powerUps.double > 0) points *= 2;
+        this.score += points;
+        this.wordsDestroyed += 1;
+        for (let index = 0; index < 16; index += 1) {
+          this.particles.push(new Particle(asteroid.x, asteroid.y, index % 2 ? "#ff8bf3" : "#65f5ff", { speed: 80 + Math.random() * 210 }));
+        }
+        this.floatingTexts.push(new FloatingText(asteroid.x, asteroid.y, `+${points}`, "#ff8bf3"));
+      });
+
+      this.activeTarget = null;
+      this.projectiles.forEach((projectile) => { projectile.done = true; });
+      this.level = Math.floor(this.score / 500) + 1;
+      this.updateWorld();
+      this.shake = 0.25;
+      this.floatingTexts.push(new FloatingText(this.width / 2, this.height * 0.52, `NOVA BLAST · ${targets.length} CLEARED`, "#ff8bf3"));
     }
 
     asteroidImpact(asteroid) {
@@ -384,7 +467,66 @@
       this.player.update(dt);
       this.flashTimer = Math.max(0, this.flashTimer - dt);
       this.shake = Math.max(0, this.shake - dt);
+      if (this.worldBannerTimer > 0) {
+        this.worldBannerTimer = Math.max(0, this.worldBannerTimer - dt);
+        if (this.worldBannerTimer === 0) this.dom.worldBanner.classList.remove("active");
+      }
       this.updateHud();
+    }
+
+    updateWorld() {
+      let nextIndex = 0;
+      WORLDS.forEach((world, index) => {
+        if (this.score >= world.threshold) nextIndex = index;
+      });
+      if (nextIndex !== this.worldIndex) this.setWorld(nextIndex, true);
+    }
+
+    setWorld(index, announce) {
+      this.worldIndex = Math.max(0, Math.min(index, WORLDS.length - 1));
+      const world = WORLDS[this.worldIndex];
+      this.dom.app.dataset.world = world.id;
+      this.dom.worldKicker.textContent = `WORLD ${String(this.worldIndex + 1).padStart(2, "0")}`;
+      this.dom.worldName.textContent = world.name;
+
+      if (announce) {
+        this.dom.worldBannerKicker.textContent = `WORLD ${String(this.worldIndex + 1).padStart(2, "0")} UNLOCKED`;
+        this.dom.worldBannerName.textContent = world.name;
+        this.dom.worldBannerDescription.textContent = world.description;
+        this.dom.worldBanner.style.setProperty("--world-accent", world.accent);
+        this.dom.worldBanner.classList.remove("active");
+        void this.dom.worldBanner.offsetWidth;
+        this.dom.worldBanner.classList.add("active");
+        this.worldBannerTimer = 3.4;
+        for (let index = 0; index < 55; index += 1) {
+          this.particles.push(new Particle(this.width / 2, this.height * 0.43, world.accent, { speed: 80 + Math.random() * 240, life: 0.8 + Math.random() * 0.8, size: 2.5 }));
+        }
+        this.shake = 0.22;
+        this.sound.play("power");
+      } else {
+        this.dom.worldBanner.classList.remove("active");
+      }
+    }
+
+    updateWorldProgress() {
+      const world = WORLDS[this.worldIndex];
+      const nextWorld = WORLDS[this.worldIndex + 1];
+      const progressElement = this.dom.worldProgressBar.parentElement;
+      if (!nextWorld) {
+        this.dom.worldProgressBar.style.width = "100%";
+        this.dom.worldNextLabel.textContent = "FINAL WORLD";
+        progressElement.setAttribute("aria-valuemax", String(world.threshold));
+        progressElement.setAttribute("aria-valuenow", String(world.threshold));
+        progressElement.setAttribute("aria-valuetext", "Final world reached");
+        return;
+      }
+      const range = nextWorld.threshold - world.threshold;
+      const progress = Math.max(0, Math.min(range, this.score - world.threshold));
+      this.dom.worldProgressBar.style.width = `${(progress / range) * 100}%`;
+      this.dom.worldNextLabel.textContent = `${nextWorld.threshold - this.score} TO ${nextWorld.name.toUpperCase()}`;
+      progressElement.setAttribute("aria-valuemax", String(range));
+      progressElement.setAttribute("aria-valuenow", String(progress));
+      progressElement.setAttribute("aria-valuetext", `${nextWorld.threshold - this.score} points to ${nextWorld.name}`);
     }
 
     updateHud() {
@@ -400,6 +542,7 @@
       this.dom.wpmValue.textContent = wpm;
       this.dom.comboValue.textContent = `×${this.combo}`;
       this.dom.typedValue.textContent = this.activeTarget ? this.activeTarget.word.slice(0, this.activeTarget.typed) : "Start typing…";
+      this.updateWorldProgress();
       this.renderPowerUps();
     }
 
@@ -407,6 +550,7 @@
       const labels = [];
       if (this.powerUps.freeze > 0) labels.push(`❄ Freeze ${Math.ceil(this.powerUps.freeze)}s`);
       if (this.powerUps.double > 0) labels.push(`◆ Double score ${Math.ceil(this.powerUps.double)}s`);
+      if (this.powerUps.dual > 0) labels.push(`✦ Dual blaster ${Math.ceil(this.powerUps.dual)}s`);
       if (this.powerUps.shield) labels.push("⬡ Shield ready");
       if (this.powerUps.mega > 0) labels.push(`⚡ Mega laser ${Math.ceil(this.powerUps.mega)}s`);
       this.dom.powerStrip.innerHTML = labels.map((label) => `<span>${label}</span>`).join("");
@@ -429,6 +573,7 @@
       document.getElementById("finalWpm").textContent = stats.wpm;
       document.getElementById("finalCombo").textContent = this.highestCombo;
       document.getElementById("finalLevel").textContent = this.level;
+      document.getElementById("finalWorld").textContent = WORLDS[this.worldIndex].name;
       this.currentScoreId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
       this.saveScore(this.dom.pilotName.value, stats);
       this.sound.play("gameover");
@@ -486,23 +631,88 @@
     }
 
     drawBackground(time) {
+      const world = WORLDS[this.worldIndex] || WORLDS[0];
       const gradient = this.ctx.createRadialGradient(this.width * 0.7, this.height * 0.35, 0, this.width * 0.7, this.height * 0.35, this.width * 0.8);
-      gradient.addColorStop(0, "rgba(24, 54, 96, .2)");
+      gradient.addColorStop(0, world.glow);
       gradient.addColorStop(0.45, "rgba(15, 23, 55, .08)");
       gradient.addColorStop(1, "rgba(1, 3, 13, .2)");
       this.ctx.fillStyle = gradient;
       this.ctx.fillRect(0, 0, this.width, this.height);
+      this.drawWorldScenery(time, world);
       this.ambientRocks.forEach((rock, index) => {
         rock.y += rock.speed;
         if (rock.y > 1.05) { rock.y = -0.05; rock.x = Math.random(); }
         this.ctx.save();
         this.ctx.globalAlpha = 0.16 + (index % 3) * 0.06;
-        this.ctx.fillStyle = "#9db5cf";
+        this.ctx.fillStyle = world.dust;
         this.ctx.beginPath();
         this.ctx.arc(rock.x * this.width, rock.y * this.height, rock.size, 0, Math.PI * 2);
         this.ctx.fill();
         this.ctx.restore();
       });
+    }
+
+    drawWorldScenery(time, world) {
+      const t = time * 0.00008;
+      this.ctx.save();
+      if (world.id === "nebula") {
+        for (let index = 0; index < 3; index += 1) {
+          const x = this.width * (0.2 + index * 0.34) + Math.sin(t * 4 + index) * 35;
+          const y = this.height * (0.28 + (index % 2) * 0.25);
+          const cloud = this.ctx.createRadialGradient(x, y, 0, x, y, this.width * 0.24);
+          cloud.addColorStop(0, "rgba(210, 45, 103, .1)");
+          cloud.addColorStop(1, "rgba(210, 45, 103, 0)");
+          this.ctx.fillStyle = cloud;
+          this.ctx.fillRect(0, 0, this.width, this.height);
+        }
+      } else if (world.id === "frost") {
+        this.ctx.strokeStyle = "rgba(174, 239, 255, .12)";
+        this.ctx.lineWidth = 1;
+        for (let index = 0; index < 18; index += 1) {
+          const x = ((index * 97 + time * 0.035) % (this.width + 160)) - 80;
+          const y = (index * 61) % this.height;
+          this.ctx.beginPath();
+          this.ctx.moveTo(x, y);
+          this.ctx.lineTo(x - 32, y + 48);
+          this.ctx.stroke();
+        }
+      } else if (world.id === "rift") {
+        const x = this.width * 0.78;
+        const y = this.height * 0.36;
+        this.ctx.strokeStyle = "rgba(173, 119, 255, .13)";
+        this.ctx.lineWidth = 8;
+        this.ctx.shadowColor = "#7d47d6";
+        this.ctx.shadowBlur = 25;
+        this.ctx.beginPath();
+        this.ctx.ellipse(x, y, 105 + Math.sin(t * 8) * 7, 34, -0.38, 0, Math.PI * 2);
+        this.ctx.stroke();
+      } else if (world.id === "solar") {
+        const x = this.width * 0.8;
+        const y = this.height * 0.22;
+        const sun = this.ctx.createRadialGradient(x, y, 5, x, y, Math.min(240, this.width * 0.23));
+        sun.addColorStop(0, "rgba(255, 244, 184, .33)");
+        sun.addColorStop(0.18, "rgba(255, 168, 55, .16)");
+        sun.addColorStop(1, "rgba(255, 111, 30, 0)");
+        this.ctx.fillStyle = sun;
+        this.ctx.fillRect(0, 0, this.width, this.height);
+      }
+      this.ctx.restore();
+    }
+
+    drawPlayerShield(time) {
+      if (!this.powerUps.shield) return;
+      const pulse = 42 + Math.sin(time * 0.006) * 3;
+      this.ctx.save();
+      this.ctx.strokeStyle = "rgba(122, 140, 255, .9)";
+      this.ctx.fillStyle = "rgba(85, 127, 255, .08)";
+      this.ctx.lineWidth = 2;
+      this.ctx.shadowColor = "#7a8cff";
+      this.ctx.shadowBlur = 18;
+      this.ctx.beginPath();
+      this.ctx.arc(this.player.x, this.player.y - 3, pulse, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.stroke();
+      this.ctx.restore();
     }
 
     draw(time) {
@@ -516,6 +726,7 @@
       this.particles.forEach((particle) => particle.draw(this.ctx));
       this.floatingTexts.forEach((floating) => floating.draw(this.ctx));
       this.player.draw(this.ctx);
+      this.drawPlayerShield(time);
       this.ctx.restore();
       if (this.flashTimer > 0) {
         this.ctx.fillStyle = `rgba(255, 61, 104, ${this.flashTimer * 0.35})`;
