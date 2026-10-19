@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#050817">
+  <meta name="description" content="AstroType: Typing Defender — destroy incoming asteroids with your keyboard.">
+  <title>AstroType: Typing Defender</title>
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+  <main class="app" id="app">
+    <canvas id="gameCanvas" aria-label="AstroType game area"></canvas>
+    <div class="stars stars-a" aria-hidden="true"></div>
+    <div class="stars stars-b" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">A</span><span>ASTROTYPE</span></div>
+      <button class="icon-button" id="soundButton" type="button" aria-label="Turn sound off" aria-pressed="true">
+        <span id="soundIcon">♪</span><span id="soundLabel">Sound on</span>
+      </button>
+    </header>
+
+    <section class="hud" id="hud" aria-label="Game statistics" hidden>
+      <div class="hud-block"><span>Score</span><strong id="scoreValue">0</strong></div>
+      <div class="hud-block"><span>Level</span><strong id="levelValue">1</strong></div>
+      <div class="hud-block"><span>Hull</span><strong id="livesValue" class="lives">♥ ♥ ♥</strong></div>
+      <div class="hud-block"><span>Accuracy</span><strong id="accuracyValue">100%</strong></div>
+      <div class="hud-block"><span>WPM</span><strong id="wpmValue">0</strong></div>
+      <div class="hud-block combo"><span>Combo</span><strong id="comboValue">×0</strong></div>
+      <div class="hud-mode" id="difficultyBadge">NORMAL</div>
+    </section>
+
+    <section class="power-strip" id="powerStrip" aria-live="polite" hidden></section>
+
+    <section class="typing-console" id="typingConsole" hidden>
+      <span class="console-label">TARGET INPUT</span>
+      <strong id="typedValue">Start typing…</strong>
+      <span class="cursor" aria-hidden="true"></span>
+    </section>
+
+    <div class="defense-line" id="defenseLine" hidden><span>DEFENSE PERIMETER</span></div>
+
+    <section class="screen active" id="menuScreen" aria-labelledby="gameTitle">
+      <div class="menu-panel">
+        <p class="eyebrow">DEEP SPACE TRAINING SYSTEM // ONLINE</p>
+        <h1 id="gameTitle">ASTRO<span>TYPE</span></h1>
+        <p class="subtitle">TYPING DEFENDER</p>
+        <p class="menu-copy">Your keyboard is the weapon. Lock onto incoming threats, type fast, and hold the line.</p>
+        <div class="menu-actions">
+          <button class="button primary" id="playButton" type="button"><span>Launch mission</span><b>↗</b></button>
+          <button class="button" id="difficultyButton" type="button"><span>Difficulty</span><b id="menuDifficulty">Normal</b></button>
+          <button class="button" id="howButton" type="button"><span>How to play</span><b>?</b></button>
+          <button class="button" id="scoresButton" type="button"><span>High scores</span><b>≡</b></button>
+        </div>
+        <div class="menu-meta"><span><i></i> SYSTEM READY</span><span>ESC TO PAUSE</span></div>
+      </div>
+      <div class="planet" aria-hidden="true"><div class="planet-ring"></div></div>
+    </section>
+
+    <section class="screen" id="difficultyScreen" aria-labelledby="difficultyTitle" hidden>
+      <div class="dialog wide">
+        <p class="eyebrow">MISSION PARAMETERS</p>
+        <h2 id="difficultyTitle">Choose difficulty</h2>
+        <div class="difficulty-grid">
+          <button class="difficulty-card" data-difficulty="easy" type="button">
+            <span class="card-code">01 // CADET</span><strong>Easy</strong><small>Short words · slow approach</small><span class="bars"><i></i><i></i><i></i></span>
+          </button>
+          <button class="difficulty-card selected" data-difficulty="normal" type="button">
+            <span class="card-code">02 // PILOT</span><strong>Normal</strong><small>Mixed words · steady pressure</small><span class="bars"><i></i><i></i><i></i></span>
+          </button>
+          <button class="difficulty-card" data-difficulty="hard" type="button">
+            <span class="card-code">03 // ACE</span><strong>Hard</strong><small>Long words · rapid assault</small><span class="bars"><i></i><i></i><i></i></span>
+          </button>
+        </div>
+        <div class="dialog-actions"><button class="button primary" id="difficultyConfirm" type="button">Confirm &amp; launch</button><button class="text-button back-menu" type="button">← Back</button></div>
+      </div>
+    </section>
+
+    <section class="screen" id="howScreen" aria-labelledby="howTitle" hidden>
+      <div class="dialog wide">
+        <p class="eyebrow">FLIGHT MANUAL</p><h2 id="howTitle">How to play</h2>
+        <div class="instruction-grid">
+          <article><span>01</span><h3>Acquire</h3><p>Type the first letter of any visible word to lock onto that asteroid.</p></article>
+          <article><span>02</span><h3>Destroy</h3><p>Finish the word correctly. Your ship automatically fires on the target.</p></article>
+          <article><span>03</span><h3>Survive</h3><p>Stop threats before they cross the defense line. Three impacts end the mission.</p></article>
+        </div>
+        <p class="tip"><kbd>ESC</kbd> pauses the mission. Mistakes reduce accuracy and reset your combo. Special asteroids grant tactical bonuses.</p>
+        <button class="button primary back-menu" type="button">Return to command</button>
+      </div>
+    </section>
+
+    <section class="screen" id="scoresScreen" aria-labelledby="scoresTitle" hidden>
+      <div class="dialog wide">
+        <p class="eyebrow">LOCAL FLIGHT RECORDS</p><h2 id="scoresTitle">High scores</h2>
+        <div class="score-tabs" role="tablist">
+          <button data-score-tab="easy" role="tab" type="button">Easy</button><button class="active" data-score-tab="normal" role="tab" type="button">Normal</button><button data-score-tab="hard" role="tab" type="button">Hard</button>
+        </div>
+        <div class="score-table"><div class="score-head"><span>#</span><span>Pilot</span><span>Score</span><span>WPM</span><span>Accuracy</span></div><div id="scoreRows"></div></div>
+        <p class="local-note">Records are saved only in this browser.</p>
+        <button class="button primary back-menu" type="button">Return to command</button>
+      </div>
+    </section>
+
+    <section class="screen overlay" id="pauseScreen" aria-labelledby="pauseTitle" hidden>
+      <div class="dialog compact"><p class="eyebrow">MISSION SUSPENDED</p><h2 id="pauseTitle">Game paused</h2><div class="stack"><button class="button primary" id="resumeButton" type="button">Resume</button><button class="button" id="restartButton" type="button">Restart mission</button><button class="text-button main-menu-button" type="button">Abandon to menu</button></div></div>
+    </section>
+
+    <section class="screen overlay" id="gameOverScreen" aria-labelledby="gameOverTitle" hidden>
+      <div class="dialog game-over">
+        <p class="eyebrow danger">DEFENSE LINE BREACHED</p><h2 id="gameOverTitle">Game over</h2>
+        <div class="final-score"><span>Final score</span><strong id="finalScore">0</strong></div>
+        <div class="results-grid"><div><span>Difficulty</span><b id="finalDifficulty">Normal</b></div><div><span>Words destroyed</span><b id="finalWords">0</b></div><div><span>Accuracy</span><b id="finalAccuracy">100%</b></div><div><span>Average WPM</span><b id="finalWpm">0</b></div><div><span>Highest combo</span><b id="finalCombo">0</b></div><div><span>Level reached</span><b id="finalLevel">1</b></div></div>
+        <label class="pilot-name">Pilot name <input id="pilotName" maxlength="12" autocomplete="nickname" placeholder="ACE" value="ACE"></label>
+        <div class="dialog-actions"><button class="button primary" id="playAgainButton" type="button">Play again</button><button class="button" id="changeDifficultyButton" type="button">Change difficulty</button><button class="text-button main-menu-button" type="button">Main menu</button></div>
+      </div>
+    </section>
+
+    <div class="rotate-notice">Rotate your device for the best flight view.</div>
+  </main>
+
+  <script src="./js/words.js"></script>
+  <script src="./js/effects.js"></script>
+  <script src="./js/player.js"></script>
+  <script src="./js/asteroid.js"></script>
+  <script src="./js/game.js"></script>
+</body>
+</html>
