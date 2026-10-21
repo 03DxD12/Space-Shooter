@@ -8,9 +8,14 @@
       this.pulse = 0;
     }
 
-    resize(width, height) {
+    resize(width, height, isMobile) {
       this.x = width / 2;
-      this.y = height - Math.max(50, height * 0.09);
+      this.y = isMobile ? height - 60 : height - Math.max(50, height * 0.09);
+    }
+
+    setPosition(x, y) {
+      this.x = x;
+      this.y = y;
     }
 
     update(dt) {

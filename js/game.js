@@ -107,13 +107,14 @@
 
     cacheDom() {
       this.dom = {};
-      ["app", "hud", "powerStrip", "typingConsole", "defenseLine", "menuScreen", "difficultyScreen", "howScreen", "scoresScreen", "pauseScreen", "gameOverScreen", "scoreValue", "levelValue", "livesValue", "accuracyValue", "wpmValue", "comboValue", "difficultyBadge", "typedValue", "menuDifficulty", "scoreRows", "soundButton", "soundIcon", "soundLabel", "pilotName", "mobileInput", "worldKicker", "worldName", "worldProgressBar", "worldNextLabel", "worldBanner", "worldBannerKicker", "worldBannerName", "worldBannerDescription"].forEach((id) => {
+      ["app", "hud", "powerStrip", "typingConsole", "defenseLine", "menuScreen", "difficultyScreen", "howScreen", "scoresScreen", "pauseScreen", "gameOverScreen", "scoreValue", "levelValue", "livesValue", "accuracyValue", "wpmValue", "comboValue", "difficultyBadge", "typedValue", "menuDifficulty", "scoreRows", "soundButton", "soundIcon", "soundLabel", "pilotName", "mobileInput", "worldKicker", "worldName", "worldProgressBar", "worldNextLabel", "worldBanner", "worldBannerKicker", "worldBannerName", "worldBannerDescription", "mobilePauseButton", "targetBadge", "targetTyped", "targetNext", "targetRemaining", "targetIncomingHints", "consoleTargetInfo", "mobileTypeHint"].forEach((id) => {
         this.dom[id] = document.getElementById(id);
       });
       this.screens = [this.dom.menuScreen, this.dom.difficultyScreen, this.dom.howScreen, this.dom.scoresScreen, this.dom.pauseScreen, this.dom.gameOverScreen];
     }
 
     bindEvents() {
+      this.setupViewport();
       window.addEventListener("resize", () => this.resize());
       document.addEventListener("keydown", (event) => this.handleKey(event));
       document.getElementById("playButton").addEventListener("click", () => this.startGame());
@@ -129,39 +130,140 @@
       document.getElementById("playAgainButton").addEventListener("click", () => this.startGame());
       document.getElementById("changeDifficultyButton").addEventListener("click", () => this.showScreen(STATES.DIFFICULTY_SELECTION));
       this.dom.soundButton.addEventListener("click", () => { this.sound.toggle(); this.updateSoundButton(); });
+
+      if (this.dom.mobilePauseButton) {
+        this.dom.mobilePauseButton.addEventListener("click", () => {
+          this.manualBlur = true;
+          if (this.dom.mobileInput) this.dom.mobileInput.blur();
+          this.pause();
+          setTimeout(() => { this.manualBlur = false; }, 300);
+        });
+      }
+
       document.querySelectorAll(".back-menu, .main-menu-button").forEach((button) => button.addEventListener("click", () => this.showScreen(STATES.MENU)));
       document.querySelectorAll(".difficulty-card").forEach((button) => button.addEventListener("click", () => this.selectDifficulty(button.dataset.difficulty)));
       document.querySelectorAll("[data-score-tab]").forEach((button) => button.addEventListener("click", () => this.showScores(button.dataset.scoreTab)));
       document.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => this.sound.play("click")));
       this.dom.pilotName.addEventListener("input", () => this.updateCurrentScoreName());
+
+      // Focus typing input when tapping screen on mobile during gameplay
+      this.canvas.addEventListener("pointerdown", () => {
+        if (this.state === STATES.PLAYING) this.focusMobileInput();
+      });
+      this.dom.typingConsole.addEventListener("pointerdown", () => {
+        if (this.state === STATES.PLAYING) this.focusMobileInput();
+      });
+
       this.dom.mobileInput.addEventListener("input", (event) => {
         if (this.state === STATES.PLAYING) {
-          event.target.value.toLowerCase().split("").filter((character) => /^[a-z]$/.test(character)).forEach((character) => this.typeCharacter(character));
+          const val = event.target.value.toLowerCase();
+          for (let i = 0; i < val.length; i += 1) {
+            const ch = val[i];
+            if (/^[a-z]$/.test(ch)) {
+              this.typeCharacter(ch);
+            }
+          }
         }
         event.target.value = "";
       });
+
+      this.dom.mobileInput.addEventListener("compositionend", (event) => {
+        if (this.state === STATES.PLAYING && event.data) {
+          const val = event.data.toLowerCase();
+          for (let i = 0; i < val.length; i += 1) {
+            const ch = val[i];
+            if (/^[a-z]$/.test(ch)) {
+              this.typeCharacter(ch);
+            }
+          }
+          this.dom.mobileInput.value = "";
+        }
+      });
+
       this.dom.mobileInput.addEventListener("keydown", (event) => {
         if (event.key === "Backspace" && this.state === STATES.PLAYING) {
           event.preventDefault();
           this.clearTarget();
         }
       });
+
+      this.dom.mobileInput.addEventListener("blur", () => {
+        if (this.state === STATES.PLAYING && this.isMobileLayout && !this.manualBlur) {
+          setTimeout(() => {
+            if (this.state === STATES.PLAYING && this.isMobileLayout && !this.manualBlur) {
+              this.focusMobileInput();
+            }
+          }, 150);
+        }
+      });
+
       document.addEventListener("visibilitychange", () => {
         if (document.hidden && this.state === STATES.PLAYING) this.pause();
       });
     }
 
+    setupViewport() {
+      const handleResize = () => {
+        if (window.scrollY !== 0 || window.scrollX !== 0) {
+          window.scrollTo(0, 0);
+        }
+        this.resize();
+      };
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", handleResize);
+        window.visualViewport.addEventListener("scroll", handleResize);
+      }
+      window.addEventListener("resize", handleResize);
+      window.addEventListener("orientationchange", () => {
+        setTimeout(handleResize, 100);
+      });
+    }
+
+    focusMobileInput() {
+      if (this.dom.mobileInput && document.activeElement !== this.dom.mobileInput) {
+        this.dom.mobileInput.focus({ preventScroll: true });
+      }
+    }
+
     resize() {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      this.width = window.innerWidth;
-      this.height = window.innerHeight;
+      const vv = window.visualViewport;
+      const newWidth = Math.round(vv ? vv.width : window.innerWidth);
+      const newHeight = Math.round(vv ? vv.height : window.innerHeight);
+      const prevHeight = this.height || newHeight;
+
+      this.width = newWidth;
+      this.height = newHeight;
+      this.isMobileLayout = this.width <= 768 || this.height <= 560;
+      document.body.classList.toggle("mobile-view", this.isMobileLayout);
+
+      const keyboardOffset = Math.max(0, window.innerHeight - this.height);
+      document.documentElement.style.setProperty("--visible-height", `${this.height}px`);
+      document.documentElement.style.setProperty("--keyboard-offset", `${keyboardOffset}px`);
+
       this.canvas.width = Math.round(this.width * dpr);
       this.canvas.height = Math.round(this.height * dpr);
       this.canvas.style.width = `${this.width}px`;
       this.canvas.style.height = `${this.height}px`;
       this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      this.player.resize(this.width, this.height);
-      this.isMobileLayout = this.width <= 700;
+
+      this.defenseY = this.isMobileLayout ? Math.round(this.height - 86) : Math.round(this.height - 78);
+      document.documentElement.style.setProperty("--defense-y", `${this.defenseY}px`);
+
+      this.player.resize(this.width, this.height, this.isMobileLayout);
+
+      // Proportionally shift existing asteroids if height changed (e.g. keyboard opened/closed)
+      if (prevHeight && Math.abs(prevHeight - this.height) > 60 && this.asteroids && this.asteroids.length) {
+        const prevDefense = prevHeight - (this.isMobileLayout ? 86 : 78);
+        const ratio = (this.defenseY - 40) / Math.max(100, prevDefense - 40);
+        if (ratio > 0 && isFinite(ratio)) {
+          this.asteroids.forEach((asteroid) => {
+            if (!asteroid.removed) {
+              asteroid.y = Math.min(this.defenseY - 35, asteroid.y * ratio);
+            }
+          });
+        }
+      }
     }
 
     selectDifficulty(value) {
@@ -190,9 +292,14 @@
       this.dom.hud.hidden = !playingUi;
       this.dom.typingConsole.hidden = !playingUi;
       this.dom.defenseLine.hidden = !playingUi;
+      if (this.dom.mobilePauseButton) {
+        this.dom.mobilePauseButton.hidden = !(this.isMobileLayout && (state === STATES.PLAYING));
+      }
       if (state !== STATES.PLAYING && state !== STATES.PAUSED) this.dom.powerStrip.hidden = true;
       if (!playingUi) {
+        this.manualBlur = true;
         this.dom.mobileInput.blur();
+        setTimeout(() => { this.manualBlur = false; }, 200);
         this.dom.worldBanner.classList.remove("active");
         this.worldBannerTimer = 0;
       }
@@ -224,10 +331,16 @@
       this.dom.hud.hidden = false;
       this.dom.typingConsole.hidden = false;
       this.dom.defenseLine.hidden = false;
+      if (this.dom.mobilePauseButton) {
+        this.dom.mobilePauseButton.hidden = !this.isMobileLayout;
+      }
       this.dom.difficultyBadge.textContent = this.difficulty.toUpperCase();
       this.dom.app.classList.add("game-active");
       this.setWorld(0, false);
       this.updateHud();
+      if (this.isMobileLayout) {
+        setTimeout(() => this.focusMobileInput(), 80);
+      }
     }
 
     pause() {
@@ -349,7 +462,8 @@
       else if (roll < 0.117) type = "freeze";
       const speedVariance = 0.84 + Math.random() * 0.3;
       const speed = (setting.speed + (this.level - 1) * (this.difficulty === "hard" ? 5 : 3.5)) * speedVariance;
-      this.asteroids.push(new Asteroid(word, x, -55, speed, type));
+      const spawnY = this.isMobileLayout ? 16 : -50;
+      this.asteroids.push(new Asteroid(word, x, spawnY, speed, type));
     }
 
     destroyAsteroid(asteroid) {
@@ -415,13 +529,13 @@
       this.combo = 0;
       if (this.powerUps.shield) {
         this.powerUps.shield = 0;
-        this.floatingTexts.push(new FloatingText(asteroid.x, this.height - 100, "SHIELD ABSORBED", "#7a8cff"));
+        this.floatingTexts.push(new FloatingText(asteroid.x, this.defenseY - 20, "SHIELD ABSORBED", "#7a8cff"));
       } else {
         this.lives -= 1;
         this.shake = 0.35;
         this.sound.play("impact");
       }
-      for (let i = 0; i < 18; i += 1) this.particles.push(new Particle(asteroid.x, this.height - 78, "#ff5c7c", { gravity: -15 }));
+      for (let i = 0; i < 18; i += 1) this.particles.push(new Particle(asteroid.x, this.defenseY, "#ff5c7c", { gravity: -15 }));
       this.updateHud();
       if (this.lives <= 0) this.endGame();
     }
@@ -443,7 +557,7 @@
       const speedFactor = this.powerUps.freeze > 0 ? 0.42 : 1;
       for (const asteroid of this.asteroids) {
         asteroid.update(dt, speedFactor);
-        if (asteroid.y - asteroid.radius > this.height - 78) this.asteroidImpact(asteroid);
+        if (asteroid.y - asteroid.radius > this.defenseY) this.asteroidImpact(asteroid);
         if (this.state !== STATES.PLAYING) break;
       }
       if (this.state !== STATES.PLAYING) return;
@@ -544,6 +658,46 @@
       this.dom.typedValue.textContent = this.activeTarget ? this.activeTarget.word.slice(0, this.activeTarget.typed) : "Start typing…";
       this.updateWorldProgress();
       this.renderPowerUps();
+      this.updateTypingConsole();
+    }
+
+    updateTypingConsole() {
+      if (!this.dom.targetBadge) return;
+      const target = this.activeTarget;
+      if (target) {
+        const type = target.type || "normal";
+        this.dom.targetBadge.textContent = type !== "normal" ? type.toUpperCase() : "LOCKED";
+        this.dom.targetBadge.className = `target-badge ${type}`;
+
+        const typed = target.word.slice(0, target.typed);
+        const next = target.word[target.typed] || "";
+        const remaining = target.word.slice(target.typed + 1);
+
+        if (this.dom.targetTyped) this.dom.targetTyped.textContent = typed;
+        if (this.dom.targetNext) this.dom.targetNext.textContent = next;
+        if (this.dom.targetRemaining) this.dom.targetRemaining.textContent = remaining;
+        if (this.dom.targetIncomingHints) this.dom.targetIncomingHints.innerHTML = "";
+      } else {
+        this.dom.targetBadge.textContent = "SCAN";
+        this.dom.targetBadge.className = "target-badge scan";
+        if (this.dom.targetTyped) this.dom.targetTyped.textContent = "";
+        if (this.dom.targetNext) this.dom.targetNext.textContent = "";
+        if (this.dom.targetRemaining) this.dom.targetRemaining.textContent = "Start typing…";
+
+        if (this.dom.targetIncomingHints) {
+          const threats = this.asteroids
+            .filter((a) => !a.removed && a.y > -20)
+            .sort((a, b) => b.y - a.y)
+            .slice(0, 3);
+          if (threats.length) {
+            this.dom.targetIncomingHints.innerHTML = threats
+              .map((a) => `<span class="incoming-chip"><b>${a.word[0].toUpperCase()}</b>${a.word.slice(1)}</span>`)
+              .join("");
+          } else {
+            this.dom.targetIncomingHints.innerHTML = "";
+          }
+        }
+      }
     }
 
     renderPowerUps() {
@@ -699,6 +853,63 @@
       this.ctx.restore();
     }
 
+    drawTargetingBeam(time) {
+      if (!this.activeTarget || this.activeTarget.removed) return;
+      this.ctx.save();
+      this.ctx.beginPath();
+      this.ctx.moveTo(this.player.x, this.player.y - 25);
+      this.ctx.lineTo(this.activeTarget.x, this.activeTarget.y);
+      this.ctx.strokeStyle = "rgba(101, 245, 255, 0.45)";
+      this.ctx.lineWidth = 1.5;
+      this.ctx.setLineDash([5, 5]);
+      this.ctx.lineDashOffset = -time * 0.05;
+      this.ctx.shadowColor = "#65f5ff";
+      this.ctx.shadowBlur = 8;
+      this.ctx.stroke();
+      this.ctx.restore();
+    }
+
+    drawOffscreenThreatMarkers() {
+      const topBoundary = this.isMobileLayout ? 88 : 72;
+      this.asteroids.forEach((asteroid) => {
+        if (asteroid.removed || asteroid.y >= topBoundary) return;
+        this.ctx.save();
+        this.ctx.translate(asteroid.x, topBoundary + 4);
+        const markerColor = asteroid.type === "golden" ? "#ffd15c" : (asteroid.type === "nova" ? "#ff8bf3" : "#65f5ff");
+        this.ctx.fillStyle = markerColor;
+        this.ctx.shadowColor = markerColor;
+        this.ctx.shadowBlur = 10;
+
+        // Downward glowing beacon triangle
+        this.ctx.beginPath();
+        this.ctx.moveTo(-7, 0);
+        this.ctx.lineTo(7, 0);
+        this.ctx.lineTo(0, 8);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // Pulsing initial letter pill above chevron
+        this.ctx.fillStyle = "rgba(4, 12, 28, 0.92)";
+        this.ctx.strokeStyle = markerColor;
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        if (this.ctx.roundRect) {
+          this.ctx.roundRect(-10, -18, 20, 15, 3);
+        } else {
+          this.ctx.rect(-10, -18, 20, 15);
+        }
+        this.ctx.fill();
+        this.ctx.stroke();
+
+        this.ctx.fillStyle = "#ffd15c";
+        this.ctx.font = "700 10px var(--display)";
+        this.ctx.textAlign = "center";
+        this.ctx.textBaseline = "middle";
+        this.ctx.fillText(asteroid.word[0].toUpperCase(), 0, -10);
+        this.ctx.restore();
+      });
+    }
+
     drawPlayerShield(time) {
       if (!this.powerUps.shield) return;
       const pulse = 42 + Math.sin(time * 0.006) * 3;
@@ -721,7 +932,9 @@
       if (![STATES.PLAYING, STATES.PAUSED, STATES.GAME_OVER].includes(this.state)) return;
       this.ctx.save();
       if (this.shake > 0) this.ctx.translate((Math.random() - 0.5) * 10, (Math.random() - 0.5) * 8);
+      this.drawTargetingBeam(time);
       this.asteroids.forEach((asteroid) => asteroid.draw(this.ctx, time));
+      this.drawOffscreenThreatMarkers();
       this.projectiles.forEach((projectile) => projectile.draw(this.ctx));
       this.particles.forEach((particle) => particle.draw(this.ctx));
       this.floatingTexts.forEach((floating) => floating.draw(this.ctx));

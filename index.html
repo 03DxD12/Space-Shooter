@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, interactive-widget=resizes-content, viewport-fit=cover">
   <meta name="theme-color" content="#050817">
   <meta name="description" content="AstroType: Typing Defender — destroy incoming asteroids with your keyboard.">
   <title>AstroType: Typing Defender</title>
-  <link rel="stylesheet" href="./css/style.css">
+  <link rel="stylesheet" href="./css/style.css?v=4">
 </head>
 <body>
   <main class="app" id="app">
@@ -20,18 +20,21 @@
         <button id="navGuide" type="button"><span aria-hidden="true">?</span><b>Guide</b></button>
         <button id="navScores" type="button"><span aria-hidden="true">▤</span><b>Records</b></button>
       </nav>
+      <button class="icon-button pause-btn" id="mobilePauseButton" type="button" aria-label="Pause mission" hidden>
+        <span aria-hidden="true">⏸</span><span class="pause-text">Pause</span>
+      </button>
       <button class="icon-button" id="soundButton" type="button" aria-label="Turn sound off" aria-pressed="true">
         <span id="soundIcon">♪</span><span id="soundLabel">Sound on</span>
       </button>
     </header>
 
     <section class="hud" id="hud" aria-label="Game statistics" hidden>
-      <div class="hud-block"><span>Score</span><strong id="scoreValue">0</strong></div>
-      <div class="hud-block"><span>Level</span><strong id="levelValue">1</strong></div>
-      <div class="hud-block"><span>Hull</span><strong id="livesValue" class="lives">♥ ♥ ♥</strong></div>
-      <div class="hud-block"><span>Accuracy</span><strong id="accuracyValue">100%</strong></div>
-      <div class="hud-block"><span>WPM</span><strong id="wpmValue">0</strong></div>
-      <div class="hud-block combo"><span>Combo</span><strong id="comboValue">×0</strong></div>
+      <div class="hud-block hud-score"><span>Score</span><strong id="scoreValue">0</strong></div>
+      <div class="hud-block hud-level"><span>Level</span><strong id="levelValue">1</strong></div>
+      <div class="hud-block hud-hull"><span>Hull</span><strong id="livesValue" class="lives">♥ ♥ ♥</strong></div>
+      <div class="hud-block hud-acc"><span>Accuracy</span><strong id="accuracyValue">100%</strong></div>
+      <div class="hud-block hud-wpm"><span>WPM</span><strong id="wpmValue">0</strong></div>
+      <div class="hud-block combo hud-combo"><span>Combo</span><strong id="comboValue">×0</strong></div>
       <div class="hud-side">
         <div class="hud-mode" id="difficultyBadge">NORMAL</div>
         <div class="world-status">
@@ -46,10 +49,17 @@
 
     <section class="typing-console" id="typingConsole" hidden>
       <span class="console-label">TARGET INPUT</span>
-      <strong id="typedValue">Start typing…</strong>
+      <div class="console-target-info" id="consoleTargetInfo">
+        <span class="target-badge" id="targetBadge">SCAN</span>
+        <div class="target-word-display" id="targetWordDisplay">
+          <span class="target-typed" id="targetTyped"></span><span class="target-next" id="targetNext"></span><span class="target-remaining" id="targetRemaining">Start typing…</span>
+        </div>
+      </div>
+      <div class="target-incoming-hints" id="targetIncomingHints" aria-label="Incoming target initial letters"></div>
+      <strong id="typedValue" class="sr-only">Start typing…</strong>
       <span class="cursor" aria-hidden="true"></span>
-      <span class="mobile-type-hint">Tap to type</span>
-      <input id="mobileInput" class="mobile-input" type="text" inputmode="text" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Type asteroid words">
+      <span class="mobile-type-hint" id="mobileTypeHint">Tap to type</span>
+      <input id="mobileInput" class="mobile-input" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="go" aria-label="Type asteroid words">
     </section>
 
     <section class="world-banner" id="worldBanner" aria-live="polite" aria-atomic="true">
@@ -138,10 +148,10 @@
     <div class="rotate-notice">Rotate your device for the best flight view.</div>
   </main>
 
-  <script src="./js/words.js"></script>
-  <script src="./js/effects.js"></script>
-  <script src="./js/player.js"></script>
-  <script src="./js/asteroid.js"></script>
-  <script src="./js/game.js"></script>
+  <script src="./js/words.js?v=4"></script>
+  <script src="./js/effects.js?v=4"></script>
+  <script src="./js/player.js?v=4"></script>
+  <script src="./js/asteroid.js?v=4"></script>
+  <script src="./js/game.js?v=4"></script>
 </body>
 </html>
